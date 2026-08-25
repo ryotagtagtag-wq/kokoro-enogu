@@ -218,7 +218,7 @@
         border-left: 3px solid var(--accent);
       }
 
-      /* 作成フロー用スタイル（既存） */
+      /* 作成フロー用スタイル */
       .step-indicator {
         display: flex;
         justify-content: center;
@@ -264,132 +264,209 @@
       .nav-btns { display: flex; gap: 12px; margin-top: 8px; }
       .nav-btns .btn-secondary { flex: 1; }
 
+      /* 設定画面 */
+      .setting-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 16px;
+        background: var(--bg);
+        border-radius: 12px;
+        border: 1px solid var(--border);
+      }
+      .setting-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .setting-desc {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .toggle {
+        position: relative;
+        width: 56px; height: 32px;
+        background: var(--border);
+        border-radius: 16px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .toggle.active { background: var(--accent); }
+      .toggle::after {
+        content: '';
+        position: absolute;
+        top: 3px; left: 3px;
+        width: 26px; height: 26px;
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        transition: transform 0.2s;
+      }
+      .toggle.active::after { transform: translateX(24px); }
+      .input-field {
+        width: 100%;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--card-bg);
+        color: var(--text);
+        font-size: 1rem;
+        font-family: inherit;
+      }
+      .input-field:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+      /* SOSアラート */
+      .sos-alert {
+        position: fixed;
+        top: 80px; left: 50%;
+        transform: translateX(-50%) translateY(-100px);
+        background: #fff0f0;
+        border: 2px solid var(--accent);
+        border-radius: 16px;
+        padding: 20px 24px;
+        box-shadow: var(--shadow);
+        z-index: 200;
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.4s ease;
+        text-align: center;
+        max-width: 90vw;
+      }
+      .sos-alert.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+        pointer-events: auto;
+      }
+      .sos-alert h3 { color: var(--accent); font-size: 1.1rem; margin-bottom: 8px; }
+      .sos-alert p { color: var(--text); font-size: 0.95rem; line-height: 1.6; }
+      .sos-alert .btn-primary { margin-top: 16px; width: auto; min-width: 120px; }
+
+      /* AIリフレクション表示 */
+      .reflection-card {
+        background: linear-gradient(135deg, var(--accent-soft), #fff5f5);
+        border: 1px solid var(--accent);
+        border-radius: 16px;
+        padding: 20px;
+        margin-top: 16px;
+        position: relative;
+        overflow: hidden;
+      }
+      .reflection-card::before {
+        content: '💭';
+        position: absolute;
+        top: 12px; right: 16px;
+        font-size: 1.5rem;
+        opacity: 0.3;
+      }
+      .reflection-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--accent);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 8px;
+      }
+      .reflection-text {
+        font-size: 1rem;
+        line-height: 1.7;
+        color: var(--text);
+      }
+
+      /* 保護者ダッシュボード */
+      .parent-dashboard {
+        max-width: 480px;
+        margin: 0 auto;
+        width: 100%;
+      }
+      .parent-header {
+        text-align: center;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+      }
+      .parent-header h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+      .parent-header p { color: var(--muted); font-size: 0.9rem; }
+      .parent-card {
+        background: var(--card-bg);
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+        padding: 20px;
+        margin-bottom: 16px;
+      }
+      .parent-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; color: var(--text); }
+      .sos-status {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px;
+        border-radius: 12px;
+        background: var(--bg);
+      }
+      .sos-status.sos-active {
+        background: #fff0f0;
+        border: 1px solid var(--accent);
+      }
+      .sos-icon {
+        width: 48px; height: 48px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.5rem;
+      }
+      .sos-status.sos-active .sos-icon { background: #ffeef0; color: var(--accent); }
+      .sos-status:not(.sos-active) .sos-icon { background: var(--accent-soft); color: var(--accent); }
+      .sos-info h4 { font-size: 1rem; font-weight: 600; }
+      .sos-info p { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
+      .card-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+      .parent-card-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: var(--bg);
+        border-radius: 10px;
+        border: 1px solid var(--border);
+      }
+      .parent-card-thumb {
+        width: 56px; height: 56px;
+        border-radius: 8px;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+      .parent-card-thumb svg { width: 100%; height: 100%; display: block; }
+      .parent-card-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .parent-card-date { font-size: 0.8rem; color: var(--muted); }
+      .parent-card-shape { font-size: 0.85rem; font-weight: 500; color: var(--text); }
+      .parent-card-colors { display: flex; gap: 4px; margin-top: 4px; }
+      .parent-color-dot {
+        width: 10px; height: 10px;
+        border-radius: 50%;
+        border: 1px solid rgba(0,0,0,0.1);
+      }
+      .login-form {
+        max-width: 360px;
+        margin: 0 auto;
+      }
+      .login-form h2 { text-align: center; margin-bottom: 8px; }
+      .login-form p { text-align: center; color: var(--muted); font-size: 0.9rem; margin-bottom: 24px; }
+      .login-form .input-field { margin-bottom: 16px; }
+      .login-form .btn-primary { margin-top: 8px; }
+
       /* 共通 */
-      * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: 'M PLUS Rounded 1c', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
-      header { padding: 16px 20px; background: var(--card-bg); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
-      header h1 { font-size: 1.4rem; font-weight: 700; background: linear-gradient(135deg, #e85d75, #ff9a8b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-      main { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
-      .panel { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; display: none; flex-direction: column; gap: 16px; animation: fadeIn 0.3s ease; }
-      .panel.active { display: flex; }
-      @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-      .panel h2 { font-size: 1.1rem; font-weight: 600; color: var(--text); }
-      .palette { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
-      .color-btn { aspect-ratio: 1; border-radius: 12px; border: 3px solid transparent; cursor: pointer; transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-      .color-btn:hover, .color-btn:focus { transform: scale(1.1); }
-      .color-btn.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), 0 4px 12px rgba(0,0,0,0.2); }
-      .color-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-      .canvas-wrap { position: relative; border-radius: 12px; overflow: hidden; background: #fff; border: 2px dashed var(--border); }
-      .canvas-wrap.ready { border-style: solid; border-color: var(--accent); }
-      #mixCanvas { display: block; width: 100%; height: auto; touch-action: none; }
-      .canvas-hint { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); font-size: 0.9rem; pointer-events: none; padding: 20px; text-align: center; }
-      .canvas-hint.hidden { display: none; }
-      .shape-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-      .shape-btn { padding: 20px 12px; border: 2px solid var(--border); border-radius: 12px; background: var(--bg); cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-      .shape-btn:hover { border-color: var(--accent); }
-      .shape-btn.selected { border-color: var(--accent); background: var(--accent-soft); }
-      .shape-btn svg { width: 48px; height: 48px; stroke: var(--text); }
-      .shape-btn span { font-size: 0.85rem; font-weight: 500; }
-      .btn-primary { width: 100%; padding: 16px; border: none; border-radius: 12px; background: var(--accent); color: #fff; font-size: 1rem; font-weight: 600; font-family: inherit; cursor: pointer; transition: opacity 0.2s, transform 0.1s; }
-      .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-      .btn-primary:active:not(:disabled) { transform: scale(0.98); }
-      .btn-secondary { width: 100%; padding: 14px; border: 2px solid var(--border); border-radius: 12px; background: transparent; color: var(--text); font-size: 0.95rem; font-weight: 500; font-family: inherit; cursor: pointer; }
-      .preview-card { aspect-ratio: 1; border-radius: 12px; background: #fff; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-      .preview-card svg { width: 90%; height: 90%; }
-      .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--card-bg); color: var(--text); padding: 14px 24px; border-radius: 12px; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: all 0.3s ease; z-index: 100; }
-      .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-      .nav-btns { display: flex; gap: 12px; margin-top: 8px; }
-      .nav-btns .btn-secondary { flex: 1; }
-      .step-indicator { display: flex; justify-content: center; gap: 8px; margin-bottom: 8px; }
-      .step-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); transition: all 0.3s ease; }
-      .step-dot.active { background: var(--accent); transform: scale(1.2); }
-      .step-dot.done { background: var(--accent); }
-      .palette { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
-      .color-btn { aspect-ratio: 1; border-radius: 12px; border: 3px solid transparent; cursor: pointer; transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-      .color-btn:hover, .color-btn:focus { transform: scale(1.1); }
-      .color-btn.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), 0 4px 12px rgba(0,0,0,0.2); }
-      .color-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-      .canvas-wrap { position: relative; border-radius: 12px; overflow: hidden; background: #fff; border: 2px dashed var(--border); }
-      .canvas-wrap.ready { border-style: solid; border-color: var(--accent); }
-      #mixCanvas { display: block; width: 100%; height: auto; touch-action: none; }
-      .canvas-hint { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); font-size: 0.9rem; pointer-events: none; padding: 20px; text-align: center; }
-      .canvas-hint.hidden { display: none; }
-      .shape-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-      .shape-btn { padding: 20px 12px; border: 2px solid var(--border); border-radius: 12px; background: var(--bg); cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-      .shape-btn:hover { border-color: var(--accent); }
-      .shape-btn.selected { border-color: var(--accent); background: var(--accent-soft); }
-      .shape-btn svg { width: 48px; height: 48px; stroke: var(--text); }
-      .shape-btn span { font-size: 0.85rem; font-weight: 500; }
-      .btn-primary { width: 100%; padding: 16px; border: none; border-radius: 12px; background: var(--accent); color: #fff; font-size: 1rem; font-weight: 600; font-family: inherit; cursor: pointer; transition: opacity 0.2s, transform 0.1s; }
-      .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-      .btn-primary:active:not(:disabled) { transform: scale(0.98); }
-      .btn-secondary { width: 100%; padding: 14px; border: 2px solid var(--border); border-radius: 12px; background: transparent; color: var(--text); font-size: 0.95rem; font-weight: 500; font-family: inherit; cursor: pointer; }
-      .preview-card { aspect-ratio: 1; border-radius: 12px; background: #fff; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-      .preview-card svg { width: 90%; height: 90%; }
-      .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--card-bg); color: var(--text); padding: 14px 24px; border-radius: 12px; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: all 0.3s ease; z-index: 100; }
-      .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-      .nav-btns { display: flex; gap: 12px; margin-top: 8px; }
-      .nav-btns .btn-secondary { flex: 1; }
-      .step-indicator { display: flex; justify-content: center; gap: 8px; margin-bottom: 8px; }
-      .step-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); transition: all 0.3s ease; }
-      .step-dot.active { background: var(--accent); transform: scale(1.2); }
-      .step-dot.done { background: var(--accent); }
-      .palette { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
-      .color-btn { aspect-ratio: 1; border-radius: 12px; border: 3px solid transparent; cursor: pointer; transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-      .color-btn:hover, .color-btn:focus { transform: scale(1.1); }
-      .color-btn.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), 0 4px 12px rgba(0,0,0,0.2); }
-      .color-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-      .canvas-wrap { position: relative; border-radius: 12px; overflow: hidden; background: #fff; border: 2px dashed var(--border); }
-      .canvas-wrap.ready { border-style: solid; border-color: var(--accent); }
-      #mixCanvas { display: block; width: 100%; height: auto; touch-action: none; }
-      .canvas-hint { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); font-size: 0.9rem; pointer-events: none; padding: 20px; text-align: center; }
-      .canvas-hint.hidden { display: none; }
-      .shape-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-      .shape-btn { padding: 20px 12px; border: 2px solid var(--border); border-radius: 12px; background: var(--bg); cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-      .shape-btn:hover { border-color: var(--accent); }
-      .shape-btn.selected { border-color: var(--accent); background: var(--accent-soft); }
-      .shape-btn svg { width: 48px; height: 48px; stroke: var(--text); }
-      .shape-btn span { font-size: 0.85rem; font-weight: 500; }
-      .btn-primary { width: 100%; padding: 16px; border: none; border-radius: 12px; background: var(--accent); color: #fff; font-size: 1rem; font-weight: 600; font-family: inherit; cursor: pointer; transition: opacity 0.2s, transform 0.1s; }
-      .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-      .btn-primary:active:not(:disabled) { transform: scale(0.98); }
-      .btn-secondary { width: 100%; padding: 14px; border: 2px solid var(--border); border-radius: 12px; background: transparent; color: var(--text); font-size: 0.95rem; font-weight: 500; font-family: inherit; cursor: pointer; }
-      .preview-card { aspect-ratio: 1; border-radius: 12px; background: #fff; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-      .preview-card svg { width: 90%; height: 90%; }
-      .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--card-bg); color: var(--text); padding: 14px 24px; border-radius: 12px; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: all 0.3s ease; z-index: 100; }
-      .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-      .nav-btns { display: flex; gap: 12px; margin-top: 8px; }
-      .nav-btns .btn-secondary { flex: 1; }
-      .step-indicator { display: flex; justify-content: center; gap: 8px; margin-bottom: 8px; }
-      .step-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); transition: all 0.3s ease; }
-      .step-dot.active { background: var(--accent); transform: scale(1.2); }
-      .step-dot.done { background: var(--accent); }
-      .palette { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
-      .color-btn { aspect-ratio: 1; border-radius: 12px; border: 3px solid transparent; cursor: pointer; transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-      .color-btn:hover, .color-btn:focus { transform: scale(1.1); }
-      .color-btn.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), 0 4px 12px rgba(0,0,0,0.2); }
-      .color-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-      .canvas-wrap { position: relative; border-radius: 12px; overflow: hidden; background: #fff; border: 2px dashed var(--border); }
-      .canvas-wrap.ready { border-style: solid; border-color: var(--accent); }
-      #mixCanvas { display: block; width: 100%; height: auto; touch-action: none; }
-      .canvas-hint { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); font-size: 0.9rem; pointer-events: none; padding: 20px; text-align: center; }
-      .canvas-hint.hidden { display: none; }
-      .shape-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-      .shape-btn { padding: 20px 12px; border: 2px solid var(--border); border-radius: 12px; background: var(--bg); cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-      .shape-btn:hover { border-color: var(--accent); }
-      .shape-btn.selected { border-color: var(--accent); background: var(--accent-soft); }
-      .shape-btn svg { width: 48px; height: 48px; stroke: var(--text); }
-      .shape-btn span { font-size: 0.85rem; font-weight: 500; }
-      .btn-primary { width: 100%; padding: 16px; border: none; border-radius: 12px; background: var(--accent); color: #fff; font-size: 1rem; font-weight: 600; font-family: inherit; cursor: pointer; transition: opacity 0.2s, transform 0.1s; }
-      .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-      .btn-primary:active:not(:disabled) { transform: scale(0.98); }
-      .btn-secondary { width: 100%; padding: 14px; border: 2px solid var(--border); border-radius: 12px; background: transparent; color: var(--text); font-size: 0.95rem; font-weight: 500; font-family: inherit; cursor: pointer; }
-      .preview-card { aspect-ratio: 1; border-radius: 12px; background: #fff; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-      .preview-card svg { width: 90%; height: 90%; }
-      .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--card-bg); color: var(--text); padding: 14px 24px; border-radius: 12px; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: all 0.3s ease; z-index: 100; }
-      .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-      .nav-btns { display: flex; gap: 12px; margin-top: 8px; }
-      .nav-btns .btn-secondary { flex: 1; }
+      .hidden { display: none !important; }
     </style>
   </head>
   <body>
@@ -400,6 +477,7 @@
       <nav class="nav-tabs" role="tablist" aria-label="メニュー">
         <button class="nav-tab active" role="tab" aria-selected="true" data-view="create">つくる</button>
         <button class="nav-tab" role="tab" aria-selected="false" data-view="calendar">じぶん観察</button>
+        <button class="nav-tab" role="tab" aria-selected="false" data-view="settings">設定</button>
       </nav>
     </header>
     <main>
@@ -482,13 +560,79 @@
         </div>
         <div class="calendar-grid" id="calendarGrid" role="grid" aria-label="カレンダー"></div>
 
+        <!-- AIリフレクション表示 -->
+        <div class="reflection-card" id="reflectionCard" style="display:none;">
+          <div class="reflection-label">今週のきみへ</div>
+          <div class="reflection-text" id="reflectionText"></div>
+        </div>
+
         <!-- パターンインサイト -->
         <div class="insight-panel" id="insightPanel" style="display:none;">
           <div class="insight-title">💡 きみのパターン</div>
           <div class="insight-list" id="insightList"></div>
         </div>
       </section>
+
+      <!-- 設定 -->
+      <section class="panel" id="view-settings" role="tabpanel" aria-label="設定">
+        <h2>設定</h2>
+
+        <div class="setting-group">
+          <div class="setting-label">言葉にしないSOS</div>
+          <div class="setting-desc">グレー/黒のトゲトゲが3日続いたとき、保護者の画面に「モヤモヤしているみたいです（内容は秘密）」とだけ通知します</div>
+          <div class="toggle-row">
+            <div>
+              <div class="setting-label" style="margin:0;">SOSを有効にする</div>
+              <div class="setting-desc">ONにすると保護者ダッシュボードで確認できるようになります</div>
+            </div>
+            <div class="toggle" id="sosToggle" role="switch" aria-checked="false" tabindex="0"></div>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label">AI週末リフレクション</div>
+          <div class="setting-desc">週末にAIが1週間のカードを見て、やさしい一言をくれます（内容は保存されません）</div>
+          <div class="toggle-row">
+            <div>
+              <div class="setting-label" style="margin:0;">AIリフレクションを有効にする</div>
+              <div class="setting-desc">OFFにするとAI機能を使いません</div>
+            </div>
+            <div class="toggle" id="aiToggle" role="switch" aria-checked="false" tabindex="0"></div>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label">お子さんの呼び名</div>
+          <div class="setting-desc">保護者ダッシュボードやAIのメッセージで使われます</div>
+          <input type="text" class="input-field" id="childNickname" placeholder="例：たろう、はなちゃん" maxlength="20">
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label">保護者パスコード</div>
+          <div class="setting-desc">保護者ダッシュボード（/parent?passcode=xxxx）で使う4桁以上の数字。忘れないようにメモしてね</div>
+          <input type="password" class="input-field" id="parentPasscode" placeholder="4桁以上の数字" inputmode="numeric" pattern="[0-9]{4,}" autocomplete="new-password">
+          <div style="font-size:0.75rem;color:var(--muted);margin-top:4px;">※ 設定後はマスクされます。変更時は新しいパスコードを入力して保存してください。</div>
+        </div>
+
+        <div class="nav-btns">
+          <button class="btn-primary" id="saveSettings">設定を保存</button>
+        </div>
+
+        <div style="margin-top:24px;padding:16px;background:var(--accent-soft);border-radius:12px;border:1px solid var(--accent);font-size:0.85rem;color:var(--accent);">
+          <strong>💡 保護者ダッシュボードの使い方</strong><br>
+          このアプリのURLに <code>?passcode=xxxx</code> をつけて開くと、保護者用画面になります。<br>
+          例: <code>https://your-app.pages.dev/?passcode=1234</code>
+        </div>
+      </section>
     </main>
+
+    <!-- SOSアラート -->
+    <div class="sos-alert" id="sosAlert" role="alert" aria-live="assertive">
+      <h3>💛 気づいてあげて</h3>
+      <p id="sosAlertText"></p>
+      <button class="btn-primary" id="sosAlertClose">わかった</button>
+    </div>
+
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

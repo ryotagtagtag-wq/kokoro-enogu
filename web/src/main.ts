@@ -18,7 +18,20 @@ let currentCreateStep = 1;
 
 // カレンダー状態
 let currentCalDate = new Date();
-let calCards: Map<string, any[]> = new Map(); // dateKey -> cards[]
+let calCards: Map<string, any[]> = new Map();
+
+// 設定状態
+let settings: {
+  sos_enabled: boolean;
+  ai_reflection_enabled: boolean;
+  child_nickname: string;
+  parent_passcode_hash: string;
+} = {
+  sos_enabled: false,
+  ai_reflection_enabled: false,
+  child_nickname: '',
+  parent_passcode_hash: '',
+};
 
 // DOM要素
 const paletteEl = document.getElementById('palette')!;
@@ -33,10 +46,20 @@ const calendarGrid = document.getElementById('calendarGrid')!;
 const calendarTitle = document.getElementById('calendarTitle')!;
 const insightPanel = document.getElementById('insightPanel')!;
 const insightList = document.getElementById('insightList')!;
+const reflectionCard = document.getElementById('reflectionCard')!;
+const reflectionText = document.getElementById('reflectionText')!;
 const steps = ['step1', 'step2', 'step3', 'step4'];
 const dots = document.querySelectorAll('.step-dot');
 const navTabs = document.querySelectorAll('.nav-tab');
 const viewPanels = document.querySelectorAll('.panel[id^="view-"]');
+const sosAlert = document.getElementById('sosAlert')!;
+const sosAlertText = document.getElementById('sosAlertText')!;
+const sosAlertClose = document.getElementById('sosAlertClose')!;
+const sosToggle = document.getElementById('sosToggle')!;
+const aiToggle = document.getElementById('aiToggle')!;
+const childNicknameInput = document.getElementById('childNickname') as HTMLInputElement;
+const parentPasscodeInput = document.getElementById('parentPasscode') as HTMLInputElement;
+const saveSettingsBtn = document.getElementById('saveSettings')!;
 
 // 初期化
 async function init() {
@@ -46,9 +69,16 @@ async function init() {
   setupCreateNavigation();
   setupViewNavigation();
   setupCalendarNavigation();
+  setupSettings();
   await checkHealth();
+  await loadSettings();
   await loadCalendarMonth();
+  await loadReflection();
+  startSosPolling();
+  checkParentDashboardMode();
 }
+
+init();
 
 // ===== 共通 =====
 function showToast(msg: string) {
@@ -381,7 +411,6 @@ async function loadCalendarMonth() {
     if (!res.ok) throw new Error('取得失敗');
     const cards = await res.json();
 
-    // 日付ごとにグループ化
     calCards.clear();
     for (const card of cards) {
       const dateKey = card.created_at.split('T')[0];
@@ -401,19 +430,17 @@ function renderCalendar() {
   const month = currentCalDate.getMonth();
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
-  const startDay = firstDay.getDay(); // 0=日
+  const startDay = firstDay.getDay();
   const daysInMonth = lastDay.getDate();
   const today = new Date();
   const todayKey = today.toISOString().split('T')[0];
 
   let html = '';
 
-  // 前月の空白
   for (let i = 0; i < startDay; i++) {
     html += '<div class="cal-day empty-day"></div>';
   }
 
-  // 今月の日付
   for (let d = 1; d <= daysInMonth; d++) {
     const date = new Date(year, month, d);
     const dateKey = date.toISOString().split('T')[0];
@@ -427,10 +454,6 @@ function renderCalendar() {
     if (hasCards) {
       if (dayCards.length === 1) {
         const card = dayCards[0];
-        const thumbCanvas = document.createElement('canvas');
-        thumbCanvas.width = 80; thumbCanvas.height = 80;
-        const tctx = thumbCanvas.getContext('2d')!;
-        // SVGを描画するため一時的にImageを使う
         dayHtml += `<div class="cal-card-thumb" data-svg="${escapeHtml(card.svg)}"></div>`;
       } else {
         dayHtml += `<div class="cal-card-thumb" data-multi="${dayCards.length}"></div>`;
@@ -443,7 +466,6 @@ function renderCalendar() {
 
   calendarGrid.innerHTML = html;
 
-  // サムネイル描画（遅延）
   requestAnimationFrame(() => {
     calendarGrid.querySelectorAll<HTMLDivElement>('.cal-card-thumb[data-svg]').forEach(el => {
       const svg = el.dataset.svg!;
@@ -468,7 +490,6 @@ function renderCalendar() {
       el.textContent = `×${count}`;
     });
 
-    // クリックで詳細表示（将来拡張用）
     calendarGrid.querySelectorAll('.cal-day[data-date]').forEach(dayEl => {
       dayEl.addEventListener('click', () => {
         const dateKey = (dayEl as HTMLElement).dataset.date!;
@@ -480,12 +501,11 @@ function renderCalendar() {
 }
 
 function escapeHtml(text: string): string {
-  return text.replace(/[&<>"']/g, c => ({ '&': '&', '<': '<', '>': '>', '"': '"', "'": "'" }[c]!));
+  const map: Record<string, string> = { '&': '&', '<': '<', '>': '>', '"': '"', "'": "\'" };
+  return text.replace(/[&<>"']/g, c => map[c]!);
 }
 
 function showDayDetail(dateKey: string, cards: any[]) {
-  // 簡易モーダル的表示（将来拡張）
-  const messages = cards.map((c, i) => `${i + 1}. ${c.shape} / ${JSON.parse(c.colors).join(', ')}`).join('\n');
   showToast(`${dateKey} のカード ${cards.length}枚`);
 }
 
@@ -499,7 +519,6 @@ function renderInsights() {
     return;
   }
 
-  // 曜日ごとの傾向
   const weekdayStats: Record<number, { toge: number; fuwa: number; gunya: number; colors: string[] }> = {};
   for (let i = 0; i < 7; i++) weekdayStats[i] = { toge: 0, fuwa: 0, gunya: 0, colors: [] };
 
@@ -523,7 +542,6 @@ function renderInsights() {
     if (dominant[1] >= 2) {
       insights.push(`${weekdayNames[i]}曜日は「${shapeLabel}」が多いね（${dominant[1]}回）`);
     }
-    // 色の傾向
     if (s.colors.length >= 3) {
       const colorCounts: Record<string, number> = {};
       for (const c of s.colors) colorCounts[c] = (colorCounts[c] || 0) + 1;
@@ -535,7 +553,6 @@ function renderInsights() {
     }
   }
 
-  // 全体の傾向
   let allToge = 0, allFuwa = 0, allGunya = 0;
   for (const s of Object.values(weekdayStats)) {
     allToge += s.toge; allFuwa += s.fuwa; allGunya += s.gunya;
@@ -568,4 +585,246 @@ function getColorName(hex: string): string {
   return map[hex] || 'その色';
 }
 
-init();
+// ===== 設定機能 =====
+async function loadSettings() {
+  try {
+    const res = await fetch(`${API_BASE}/api/settings`);
+    if (!res.ok) throw new Error('設定取得失敗');
+    const data = await res.json();
+    settings.sos_enabled = data.sos_enabled === 'true';
+    settings.ai_reflection_enabled = data.ai_reflection_enabled === 'true';
+    settings.child_nickname = data.child_nickname || '';
+    settings.parent_passcode_hash = data.parent_passcode_hash || '';
+    applySettingsToUI();
+  } catch (e) {
+    console.error('設定読み込みエラー:', e);
+  }
+}
+
+function applySettingsToUI() {
+  sosToggle.classList.toggle('active', settings.sos_enabled);
+  sosToggle.setAttribute('aria-checked', String(settings.sos_enabled));
+  aiToggle.classList.toggle('active', settings.ai_reflection_enabled);
+  aiToggle.setAttribute('aria-checked', String(settings.ai_reflection_enabled));
+  childNicknameInput.value = settings.child_nickname;
+  parentPasscodeInput.value = '';
+}
+
+function setupSettings() {
+  sosToggle.addEventListener('click', () => {
+    settings.sos_enabled = !settings.sos_enabled;
+    sosToggle.classList.toggle('active', settings.sos_enabled);
+    sosToggle.setAttribute('aria-checked', String(settings.sos_enabled));
+  });
+  sosToggle.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      sosToggle.click();
+    }
+  });
+
+  aiToggle.addEventListener('click', () => {
+    settings.ai_reflection_enabled = !settings.ai_reflection_enabled;
+    aiToggle.classList.toggle('active', settings.ai_reflection_enabled);
+    aiToggle.setAttribute('aria-checked', String(settings.ai_reflection_enabled));
+  });
+  aiToggle.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      aiToggle.click();
+    }
+  });
+
+  childNicknameInput.addEventListener('input', () => {
+    settings.child_nickname = childNicknameInput.value;
+  });
+
+  parentPasscodeInput.addEventListener('input', () => {
+    // パスコードは保存時にハッシュ化
+  });
+
+  saveSettingsBtn.addEventListener('click', saveSettings);
+}
+
+async function saveSettings() {
+  const passcode = parentPasscodeInput.value.trim();
+  const body: Record<string, string> = {
+    sos_enabled: settings.sos_enabled ? 'true' : 'false',
+    ai_reflection_enabled: settings.ai_reflection_enabled ? 'true' : 'false',
+    child_nickname: settings.child_nickname,
+  };
+  if (passcode) {
+    const hash = await sha256Hex(passcode);
+    body.parent_passcode_hash = hash;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/api/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('保存失敗');
+    settings.parent_passcode_hash = body.parent_passcode_hash || settings.parent_passcode_hash;
+    showToast('設定を保存しました');
+  } catch (e) {
+    console.error(e);
+    showToast('設定の保存に失敗しました');
+  }
+}
+
+async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ===== SOS検知・アラート =====
+let sosAlertShown = false;
+
+async function checkSos() {
+  if (!settings.sos_enabled) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/sos`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.sos && !sosAlertShown) {
+      showSosAlert();
+    }
+  } catch (e) {
+    console.error('SOSチェックエラー:', e);
+  }
+}
+
+function showSosAlert() {
+  sosAlertShown = true;
+  const nickname = settings.child_nickname || 'お子さん';
+  sosAlertText.textContent = `${nickname}が最近モヤモヤしているみたいです（内容は秘密）。\n「最近どう？」と声をかけてあげてください。`;
+  sosAlert.classList.add('show');
+}
+
+sosAlertClose.addEventListener('click', () => {
+  sosAlert.classList.remove('show');
+});
+
+function startSosPolling() {
+  checkSos();
+  setInterval(checkSos, 60 * 60 * 1000); // 1時間ごと
+}
+
+// ===== AIリフレクション =====
+async function loadReflection() {
+  if (!settings.ai_reflection_enabled) {
+    reflectionCard.style.display = 'none';
+    return;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/api/reflection`, { method: 'POST' });
+    if (!res.ok) {
+      reflectionCard.style.display = 'none';
+      return;
+    }
+    const data = await res.json();
+    if (data.message) {
+      reflectionText.textContent = data.message;
+      reflectionCard.style.display = 'block';
+    } else {
+      reflectionCard.style.display = 'none';
+    }
+  } catch (e) {
+    console.error('リフレクション取得エラー:', e);
+    reflectionCard.style.display = 'none';
+  }
+}
+
+// ===== 保護者ダッシュボードモード =====
+function checkParentDashboardMode() {
+  const params = new URLSearchParams(window.location.search);
+  const passcode = params.get('passcode');
+  if (passcode) {
+    document.body.classList.add('parent-mode');
+    (navTabs as NodeListOf<HTMLElement>).forEach(t => { t.style.display = 'none'; });
+    (viewPanels as NodeListOf<HTMLElement>).forEach(p => p.classList.remove('active'));
+    document.getElementById('view-create')!.classList.add('hidden');
+    document.getElementById('view-calendar')!.classList.add('hidden');
+    document.getElementById('view-settings')!.classList.add('hidden');
+    renderParentDashboard(passcode);
+  }
+}
+
+async function renderParentDashboard(passcode: string) {
+  try {
+    const res = await fetch(`${API_BASE}/api/parent/summary?passcode=${encodeURIComponent(passcode)}`);
+    if (!res.ok) {
+      showToast('パスコードが違います');
+      setTimeout(() => window.history.replaceState({}, '', '/'), 2000);
+      return;
+    }
+    const data = await res.json();
+
+    const main = document.querySelector('main')!;
+    main.innerHTML = `
+      <section class="panel active parent-dashboard">
+        <div class="parent-header">
+          <h2>${data.nickname || 'お子さん'}のココロの絵の具</h2>
+          <p>保護者ダッシュボード</p>
+        </div>
+
+        <div class="parent-card">
+          <h3>SOSステータス</h3>
+          <div class="sos-status ${data.sos ? 'sos-active' : ''}">
+            <div class="sos-icon">${data.sos ? '💛' : '✨'}</div>
+            <div class="sos-info">
+              <h4>${data.sos ? 'SOS発信中' : '落ち着いています'}</h4>
+              <p>${data.sos ? data.message : '最近は落ち着いて過ごせています'}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="parent-card">
+          <h3>最近のカード（直近31日）</h3>
+          <div class="card-list" id="parentCardList"></div>
+        </div>
+      </section>
+    `;
+
+    const cardList = document.getElementById('parentCardList')!;
+    if (data.cards && data.cards.length > 0) {
+      cardList.innerHTML = data.cards.map((card: any) => {
+        const colors = JSON.parse(card.colors);
+        const date = new Date(card.created_at).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', weekday: 'short' });
+        const shapeLabel = ({ toge: 'トゲトゲ', fuwa: 'ふわふわ', gunya: 'ぐにゃぐにゃ' } as Record<string, string>)[card.shape] || card.shape;
+        return `
+          <div class="parent-card-item">
+            <div class="parent-card-thumb" data-svg="${escapeHtml(card.svg)}"></div>
+            <div class="parent-card-info">
+              <div class="parent-card-date">${date}</div>
+              <div class="parent-card-shape">${shapeLabel}</div>
+              <div class="parent-card-colors">
+                ${colors.map((c: string) => `<span class="parent-color-dot" style="background:${c}"></span>`).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    } else {
+      cardList.innerHTML = '<p style="color:var(--muted);text-align:center;padding:20px;">まだカードがありません</p>';
+    }
+
+    requestAnimationFrame(() => {
+      document.querySelectorAll<HTMLDivElement>('.parent-card-thumb[data-svg]').forEach(el => {
+        const svg = el.dataset.svg!;
+        const img = new Image();
+        img.onload = () => {
+          const c = document.createElement('canvas');
+          c.width = 56; c.height = 56;
+          c.getContext('2d')!.drawImage(img, 0, 0, 56, 56);
+          el.innerHTML = '';
+          el.appendChild(c);
+        };
+        img.src = 'data:image/svg+xml;base64,' + btoa(svg);
+      });
+    });
+  } catch (e) {
+    console.error('保護者ダッシュボードエラー:', e);
+    showToast('ダッシュボードの読み込みに失敗しました');
+  }
+}
