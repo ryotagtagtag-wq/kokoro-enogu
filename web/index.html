@@ -467,6 +467,23 @@
 
       /* 共通 */
       .hidden { display: none !important; }
+      /* 混色キャンバス工具バー */
+      .canvas-tools { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+      .btn-tool { background: var(--card-bg); color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 8px 14px; font-size: 0.85rem; font-family: inherit; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+      .btn-tool:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+      .btn-tool-accent { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+
+      /* 自由おえかきモーダル */
+      .sketch-modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 60; padding: 16px; }
+      .sketch-modal.open { display: flex; }
+      .sketch-dialog { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; width: min(420px, 100%); }
+      .sketch-dialog h3 { margin: 0 0 10px; }
+      .sketch-colors { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+      .sketch-color { width: 30px; height: 30px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; }
+      .sketch-color.selected { border-color: var(--text); }
+      .sketch-canvas-wrap { border: 2px dashed var(--border); border-radius: var(--radius); overflow: hidden; touch-action: none; }
+      #sketchCanvas { display: block; width: 100%; height: auto; touch-action: none; }
+      .sketch-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; flex-wrap: wrap; }
     </style>
   </head>
   <body>
@@ -505,6 +522,11 @@
             <div class="canvas-hint" id="canvasHint">
               選んだ色がここに出ます。<br>指でなぞって色を混ぜてね。
             </div>
+          </div>
+          <div class="canvas-tools">
+            <button class="btn-tool" id="undoStroke" type="button">↩ ひとつもどす</button>
+            <button class="btn-tool" id="clearCanvas" type="button">🧽 すべてけす</button>
+            <button class="btn-tool btn-tool-accent" id="openSketch" type="button">✏️ じゆうにおえかき</button>
           </div>
           <div class="nav-btns">
             <button class="btn-secondary" id="backTo1">← もどる</button>
@@ -634,6 +656,23 @@
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <!-- 自由おえかきモーダル -->
+    <div class="sketch-modal" id="sketchModal" role="dialog" aria-modal="true" aria-label="自由におえかき">
+      <div class="sketch-dialog">
+        <h3>✏️ じゆうにおえかき</h3>
+        <div class="sketch-colors" id="sketchColors"></div>
+        <div class="sketch-canvas-wrap" id="sketchCanvasWrap">
+          <canvas id="sketchCanvas"></canvas>
+        </div>
+        <div class="sketch-actions">
+          <button class="btn-tool" id="sketchClear" type="button">🧽 けす</button>
+          <button class="btn-secondary" id="sketchCancel" type="button">やめる</button>
+          <button class="btn-primary" id="sketchDone" type="button">まぜるキャンバスに入れる</button>
+        </div>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

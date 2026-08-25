@@ -9,7 +9,10 @@
     "db:init:remote": "wrangler d1 execute kokoro-enogu --remote --file=./schema.sql"
   },
   "dependencies": {
-    "hono": "^4.6.0"
+    "ai": "^7.0.79",
+    "hono": "^4.6.0",
+    "workers-ai-provider": "^4.0.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260820.1",

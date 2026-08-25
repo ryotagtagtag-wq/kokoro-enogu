@@ -1,3 +1,7 @@
+import { localDateKey, renderThumbs } from './utils';
+import { createMixCanvas, type MixCanvasController } from './mixCanvas';
+import { createSketchPad } from './sketchPad';
+
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8787';
 
 const PALETTE_COLORS = [
@@ -12,13 +16,16 @@ const PALETTE_COLORS = [
 
 // 作成フロー状態
 let selectedColors: string[] = [];
-let mixedImageData: ImageData | null = null;
 let selectedShape: 'toge' | 'fuwa' | 'gunya' | null = null;
 let currentCreateStep = 1;
+let mix: MixCanvasController | null = null;
+let sketch: ReturnType<typeof createSketchPad> | null = null;
 
 // カレンダー状態
 let currentCalDate = new Date();
 let calCards: Map<string, any[]> = new Map();
+/** カードID → SVG本文（属性埋め込みを避けるための参照マップ） */
+const cardSvgMap: Map<number, string> = new Map();
 
 // 設定状態
 let settings: {
@@ -36,7 +43,6 @@ let settings: {
 // DOM要素
 const paletteEl = document.getElementById('palette')!;
 const canvas = document.getElementById('mixCanvas') as HTMLCanvasElement;
-const ctx = canvas.getContext('2d')!;
 const canvasWrap = document.getElementById('canvasWrap')!;
 const canvasHint = document.getElementById('canvasHint')!;
 const shapeOptions = document.getElementById('shapeOptions')!;
@@ -140,6 +146,7 @@ function toggleColor(color: string, btn: HTMLButtonElement) {
     btn.setAttribute('aria-selected', 'true');
   }
   updateStep1Button();
+  mix?.setColors(selectedColors);
 }
 
 function updateStep1Button() {
@@ -147,71 +154,41 @@ function updateStep1Button() {
 }
 
 function setupCanvas() {
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = 360 * dpr;
-  canvas.height = 360 * dpr;
-  canvas.style.width = '360px';
-  canvas.style.height = '360px';
-  ctx.scale(dpr, dpr);
+  mix = createMixCanvas(canvas);
+  sketch = createSketchPad((dataUrl) => {
+    if (!dataUrl || !mix) return;
+    mix.addImageFromUrl(dataUrl).then(() => {
+      canvasHint.classList.add('hidden');
+      canvasWrap.classList.add('ready');
+      updateStep2Button();
+    });
+  });
 
-  let isDrawing = false;
-  let lastX = 0, lastY = 0;
-
-  function getPos(e: MouseEvent | TouchEvent) {
-    const rect = canvas.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    return { x: clientX - rect.left, y: clientY - rect.top };
-  }
-
-  function startDraw(e: MouseEvent | TouchEvent) {
-    if (selectedColors.length === 0) return;
-    isDrawing = true;
-    const pos = getPos(e);
-    lastX = pos.x; lastY = pos.y;
+  mix.setColors(selectedColors);
+  mix.onStroke(() => {
     canvasHint.classList.add('hidden');
     canvasWrap.classList.add('ready');
-    drawBrush(pos.x, pos.y, true);
-    e.preventDefault();
-  }
-
-  function draw(e: MouseEvent | TouchEvent) {
-    if (!isDrawing) return;
-    const pos = getPos(e);
-    drawBrush(pos.x, pos.y, false);
-    lastX = pos.x; lastY = pos.y;
-    e.preventDefault();
-  }
-
-  function endDraw() {
-    isDrawing = false;
-    mixedImageData = ctx.getImageData(0, 0, 360, 360);
     updateStep2Button();
-  }
+  });
 
-  canvas.addEventListener('mousedown', startDraw);
-  canvas.addEventListener('mousemove', draw);
-  canvas.addEventListener('mouseup', endDraw);
-  canvas.addEventListener('mouseleave', endDraw);
-  canvas.addEventListener('touchstart', startDraw, { passive: false });
-  canvas.addEventListener('touchmove', draw, { passive: false });
-  canvas.addEventListener('touchend', endDraw);
-}
-
-function drawBrush(x: number, y: number, isStart: boolean) {
-  const radius = 28;
-  const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-  const color = selectedColors[Math.floor(Math.random() * selectedColors.length)];
-  gradient.addColorStop(0, color + 'CC');
-  gradient.addColorStop(1, color + '00');
-  ctx.fillStyle = gradient;
-  ctx.beginPath();
-  ctx.arc(x, y, radius, 0, Math.PI * 2);
-  ctx.fill();
+  document.getElementById('undoStroke')?.addEventListener('click', () => {
+    mix?.undo();
+    updateStep2Button();
+  });
+  document.getElementById('clearCanvas')?.addEventListener('click', () => {
+    mix?.clear();
+    canvasHint.classList.remove('hidden');
+    canvasWrap.classList.remove('ready');
+    updateStep2Button();
+  });
+  document.getElementById('openSketch')?.addEventListener('click', () => {
+    sketch?.setColors(selectedColors.length > 0 ? selectedColors : ['#888888']);
+    sketch?.open();
+  });
 }
 
 function updateStep2Button() {
-  (document.getElementById('toStep3') as HTMLButtonElement).disabled = !mixedImageData;
+  (document.getElementById('toStep3') as HTMLButtonElement).disabled = !mix || mix.isEmpty();
 }
 
 function setupShapeOptions() {
@@ -253,16 +230,12 @@ function goCreateStep(step: number) {
 }
 
 function preparePreview() {
-  if (!mixedImageData || !selectedShape) return;
+  if (!mix || mix.isEmpty() || !selectedShape) return;
 }
 
 function renderPreview() {
-  if (!mixedImageData || !selectedShape) return;
-  const tempCanvas = document.createElement('canvas');
-  tempCanvas.width = 360; tempCanvas.height = 360;
-  const tctx = tempCanvas.getContext('2d')!;
-  tctx.putImageData(mixedImageData, 0, 0);
-  const svg = generateCardSVG(tempCanvas, selectedShape!);
+  if (!mix || mix.isEmpty() || !selectedShape) return;
+  const svg = generateCardSVG(mix.sourceCanvas(), selectedShape!);
   previewCard.innerHTML = svg;
 }
 
@@ -335,17 +308,13 @@ function generateCardSVG(sourceCanvas: HTMLCanvasElement, shape: 'toge' | 'fuwa'
 }
 
 async function saveCard() {
-  if (!mixedImageData || !selectedShape) return;
+  if (!mix || mix.isEmpty() || !selectedShape) return;
   const btn = document.getElementById('saveCard') as HTMLButtonElement;
   btn.disabled = true;
   btn.textContent = '保存中...';
 
   try {
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = 360; tempCanvas.height = 360;
-    const tctx = tempCanvas.getContext('2d')!;
-    tctx.putImageData(mixedImageData, 0, 0);
-    const svg = generateCardSVG(tempCanvas, selectedShape!);
+    const svg = generateCardSVG(mix.sourceCanvas(), selectedShape!);
 
     const res = await fetch(`${API_BASE}/api/cards`, {
       method: 'POST',
@@ -366,7 +335,6 @@ async function saveCard() {
 
 function resetCreateFlow() {
   selectedColors = [];
-  mixedImageData = null;
   selectedShape = null;
   paletteEl.querySelectorAll('.color-btn').forEach(b => {
     b.classList.remove('selected');
@@ -376,7 +344,7 @@ function resetCreateFlow() {
     b.classList.remove('selected');
     b.setAttribute('aria-selected', 'false');
   });
-  ctx.clearRect(0, 0, 360, 360);
+  mix?.clear();
   canvasHint.classList.remove('hidden');
   canvasWrap.classList.remove('ready');
   (document.getElementById('toStep2') as HTMLButtonElement).disabled = true;
@@ -403,8 +371,10 @@ async function loadCalendarMonth() {
 
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
-  const from = firstDay.toISOString().split('T')[0];
-  const to = new Date(lastDay.getTime() + 86400000).toISOString().split('T')[0];
+  // D1は 'YYYY-MM-DD HH:MM:SS'（ローカル時刻・スペース区切り）で保存されるため
+  // from/to もローカル日付キーで比較する
+  const from = localDateKey(firstDay);
+  const to = localDateKey(new Date(lastDay.getTime() + 86400000));
 
   try {
     const res = await fetch(`${API_BASE}/api/cards?from=${from}&to=${to}`);
@@ -412,10 +382,12 @@ async function loadCalendarMonth() {
     const cards = await res.json();
 
     calCards.clear();
+    cardSvgMap.clear();
     for (const card of cards) {
-      const dateKey = card.created_at.split('T')[0];
+      const dateKey = String(card.created_at).slice(0, 10);
       if (!calCards.has(dateKey)) calCards.set(dateKey, []);
       calCards.get(dateKey)!.push(card);
+      cardSvgMap.set(card.id, card.svg);
     }
   } catch (e) {
     console.error('カレンダー取得エラー:', e);
@@ -433,7 +405,7 @@ function renderCalendar() {
   const startDay = firstDay.getDay();
   const daysInMonth = lastDay.getDate();
   const today = new Date();
-  const todayKey = today.toISOString().split('T')[0];
+  const todayKey = localDateKey(today);
 
   let html = '';
 
@@ -454,7 +426,7 @@ function renderCalendar() {
     if (hasCards) {
       if (dayCards.length === 1) {
         const card = dayCards[0];
-        dayHtml += `<div class="cal-card-thumb" data-svg="${escapeHtml(card.svg)}"></div>`;
+        dayHtml += `<div class="cal-card-thumb" data-card-id="${card.id}"></div>`;
       } else {
         dayHtml += `<div class="cal-card-thumb" data-multi="${dayCards.length}"></div>`;
         dayHtml += `<span class="cal-multi-indicator">${dayCards.length}</span>`;
@@ -467,18 +439,8 @@ function renderCalendar() {
   calendarGrid.innerHTML = html;
 
   requestAnimationFrame(() => {
-    calendarGrid.querySelectorAll<HTMLDivElement>('.cal-card-thumb[data-svg]').forEach(el => {
-      const svg = el.dataset.svg!;
-      const img = new Image();
-      img.onload = () => {
-        const c = document.createElement('canvas');
-        c.width = 80; c.height = 80;
-        c.getContext('2d')!.drawImage(img, 0, 0, 80, 80);
-        el.innerHTML = '';
-        el.appendChild(c);
-      };
-      img.src = 'data:image/svg+xml;base64,' + btoa(svg);
-    });
+    renderThumbs(calendarGrid, cardSvgMap, 80);
+
     calendarGrid.querySelectorAll<HTMLDivElement>('.cal-card-thumb[data-multi]').forEach(el => {
       const count = parseInt(el.dataset.multi || '0');
       el.style.background = 'linear-gradient(135deg, var(--accent-soft), var(--accent))';
@@ -498,11 +460,6 @@ function renderCalendar() {
       });
     });
   });
-}
-
-function escapeHtml(text: string): string {
-  const map: Record<string, string> = { '&': '&', '<': '<', '>': '>', '"': '"', "'": "\'" };
-  return text.replace(/[&<>"']/g, c => map[c]!);
 }
 
 function showDayDetail(dateKey: string, cards: any[]) {
@@ -717,12 +674,36 @@ async function loadReflection() {
     return;
   }
   try {
-    const res = await fetch(`${API_BASE}/api/reflection`, { method: 'POST' });
-    if (!res.ok) {
+    // まずストリーミング版を試す（文字がだんだん現れる）
+    const res = await fetch(`${API_BASE}/api/reflection/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    if (res.ok && res.body) {
+      reflectionText.textContent = '';
+      reflectionCard.style.display = 'block';
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let received = '';
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        received += decoder.decode(value, { stream: true });
+        reflectionText.textContent = received;
+      }
+      if (received.trim().length > 0) return;
       reflectionCard.style.display = 'none';
       return;
     }
-    const data = await res.json();
+
+    // フォールバック: 従来の一括取得
+    const fallback = await fetch(`${API_BASE}/api/reflection`, { method: 'POST' });
+    if (!fallback.ok) {
+      reflectionCard.style.display = 'none';
+      return;
+    }
+    const data = await fallback.json();
     if (data.message) {
       reflectionText.textContent = data.message;
       reflectionCard.style.display = 'block';
@@ -760,6 +741,12 @@ async function renderParentDashboard(passcode: string) {
     }
     const data = await res.json();
 
+    // サムネイル描画用にSVGを参照マップへ
+    cardSvgMap.clear();
+    for (const card of data.cards ?? []) {
+      cardSvgMap.set(card.id, card.svg);
+    }
+
     const main = document.querySelector('main')!;
     main.innerHTML = `
       <section class="panel active parent-dashboard">
@@ -794,7 +781,7 @@ async function renderParentDashboard(passcode: string) {
         const shapeLabel = ({ toge: 'トゲトゲ', fuwa: 'ふわふわ', gunya: 'ぐにゃぐにゃ' } as Record<string, string>)[card.shape] || card.shape;
         return `
           <div class="parent-card-item">
-            <div class="parent-card-thumb" data-svg="${escapeHtml(card.svg)}"></div>
+            <div class="parent-card-thumb" data-card-id="${card.id}"></div>
             <div class="parent-card-info">
               <div class="parent-card-date">${date}</div>
               <div class="parent-card-shape">${shapeLabel}</div>
@@ -810,18 +797,7 @@ async function renderParentDashboard(passcode: string) {
     }
 
     requestAnimationFrame(() => {
-      document.querySelectorAll<HTMLDivElement>('.parent-card-thumb[data-svg]').forEach(el => {
-        const svg = el.dataset.svg!;
-        const img = new Image();
-        img.onload = () => {
-          const c = document.createElement('canvas');
-          c.width = 56; c.height = 56;
-          c.getContext('2d')!.drawImage(img, 0, 0, 56, 56);
-          el.innerHTML = '';
-          el.appendChild(c);
-        };
-        img.src = 'data:image/svg+xml;base64,' + btoa(svg);
-      });
+      renderThumbs(document, cardSvgMap, 56);
     });
   } catch (e) {
     console.error('保護者ダッシュボードエラー:', e);

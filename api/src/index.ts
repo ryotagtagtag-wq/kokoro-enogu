@@ -1,5 +1,8 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { z } from 'zod';
+import { streamText } from 'ai';
+import { createWorkersAI } from 'workers-ai-provider';
 
 type Bindings = {
   DB: D1Database;
@@ -37,7 +40,7 @@ app.post('/api/cards', async (c) => {
 app.get('/api/cards', async (c) => {
   const from = c.req.query('from');
   const to = c.req.query('to');
-  let sql = 'SELECT id, created_at, colors, shape FROM cards';
+  let sql = 'SELECT id, created_at, colors, shape, svg FROM cards';
   const conds: string[] = [];
   const binds: (string | number)[] = [];
   if (from) {
@@ -140,8 +143,8 @@ app.get('/api/parent/summary', async (c) => {
     )?.value ?? '';
 
   const { results: cards } = await c.env.DB.prepare(
-    'SELECT id, created_at, colors, shape FROM cards ORDER BY created_at DESC LIMIT 31'
-  ).all<{ id: number; created_at: string; colors: string; shape: string | null }>();
+    'SELECT id, created_at, colors, shape, svg FROM cards ORDER BY created_at DESC LIMIT 31'
+  ).all<{ id: number; created_at: string; colors: string; shape: string | null; svg: string }>();
 
   const sos =
     cards.length >= 3 &&
@@ -158,28 +161,30 @@ app.get('/api/parent/summary', async (c) => {
       created_at: r.created_at,
       colors: JSON.parse(r.colors),
       shape: r.shape,
+      svg: r.svg,
     })),
   });
 });
 
 // ---- AI週末リフレクション（Workers AI / ON・OFF可）----
 
-app.post('/api/reflection', async (c) => {
-  const aiOn =
-    (
-      await c.env.DB.prepare(
-        "SELECT value FROM settings WHERE key = 'ai_reflection_enabled'"
-      ).first<{ value: string }>()
-    )?.value === 'true';
-  if (!aiOn) return c.json({ error: 'disabled' }, 400);
+async function isAiEnabled(db: D1Database): Promise<boolean> {
+  const row = await db
+    .prepare("SELECT value FROM settings WHERE key = 'ai_reflection_enabled'")
+    .first<{ value: string }>();
+  return row?.value === 'true';
+}
 
+/** 直近7日分のカードからAIへの要約文を作る（カードがなければ null） */
+async function getWeekSummary(db: D1Database): Promise<string | null> {
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
-  const { results } = await c.env.DB.prepare(
-    'SELECT colors, shape, created_at FROM cards WHERE created_at >= ? ORDER BY created_at'
-  )
+  const { results } = await db
+    .prepare(
+      'SELECT colors, shape, created_at FROM cards WHERE created_at >= ? ORDER BY created_at'
+    )
     .bind(weekAgo)
     .all<{ colors: string; shape: string | null; created_at: string }>();
-  if (results.length === 0) return c.json({ message: null });
+  if (results.length === 0) return null;
 
   // 簡易サマリ: 形の集計と色の明るさ傾向
   const shapes = { toge: 0, fuwa: 0, gunya: 0 } as Record<string, number>;
@@ -201,23 +206,56 @@ app.post('/api/reflection', async (c) => {
     }
   }
   const avgBright = total > 0 ? Math.round(bright / total) : 128;
-  const summary = `今週${results.length}枚。形: トゲトゲ${shapes.toge}/ふわふわ${shapes.fuwa}/ぐにゃぐにゃ${shapes.gunya}。色の平均明るさ: ${avgBright}/255。`;
+  return `今週${results.length}枚。形: トゲトゲ${shapes.toge}/ふわふわ${shapes.fuwa}/ぐにゃぐにゃ${shapes.gunya}。色の平均明るさ: ${avgBright}/255。`;
+}
+
+function reflectionMessages(summary: string) {
+  return [
+    {
+      role: 'system' as const,
+      content:
+        'あなたは小学生にやさしく寄り添う存在です。50字以内で、決めつけず断定せず、肯定的な一言を返します。質問はしないでください。',
+    },
+    {
+      role: 'user' as const,
+      content: `子どもが1週間、気持ちを色と形のカードで記録しました。\n${summary}\nこれに対してやさしい一言をください。`,
+    },
+  ];
+}
+
+app.post('/api/reflection', async (c) => {
+  if (!(await isAiEnabled(c.env.DB))) return c.json({ error: 'disabled' }, 400);
+  const summary = await getWeekSummary(c.env.DB);
+  if (!summary) return c.json({ message: null });
 
   const res = await c.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
-    messages: [
-      {
-        role: 'system',
-        content:
-          'あなたは小学生にやさしく寄り添う存在です。50字以内で、決めつけず断定せず、肯定的な一言を返します。質問はしないでください。',
-      },
-      {
-        role: 'user',
-        content: `子どもが1週間、気持ちを色と形のカードで記録しました。\n${summary}\nこれに対してやさしい一言をください。`,
-      },
-    ],
+    messages: reflectionMessages(summary),
   });
   const message = (res as { response?: string }).response ?? null;
   return c.json({ message });
+});
+
+// ストリーミング版（Vercel AI SDK + workers-ai-provider、zodで入力検証）
+const reflectionRequestSchema = z.object({
+  nickname: z.string().max(20).optional(),
+});
+
+app.post('/api/reflection/stream', async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = reflectionRequestSchema.safeParse(body);
+  if (!parsed.success) return c.json({ error: 'invalid' }, 400);
+
+  if (!(await isAiEnabled(c.env.DB))) return c.json({ error: 'disabled' }, 400);
+  const summary = await getWeekSummary(c.env.DB);
+  if (!summary) return c.json({ message: null });
+
+  const workersai = createWorkersAI({ binding: c.env.AI });
+  const result = streamText({
+    model: workersai('@cf/meta/llama-3.1-8b-instruct'),
+    messages: reflectionMessages(summary),
+    maxOutputTokens: 120,
+  });
+  return result.toTextStreamResponse();
 });
 
 export default app;
