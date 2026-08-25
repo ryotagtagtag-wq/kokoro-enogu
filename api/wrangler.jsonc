@@ -1,0 +1,13 @@
+{
+  "name": "kokoro-enogu-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kokoro-enogu",
+      "database_id": "8728d625-189f-4110-a7a5-dcb915ab1c56"
+    }
+  ],
+  "ai": { "binding": "AI" }
+}
